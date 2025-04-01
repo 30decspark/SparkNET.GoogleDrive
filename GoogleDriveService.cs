@@ -21,11 +21,11 @@ namespace SparkNET.GoogleDrive
             });
         }
 
-        public async Task<string> UploadFileAsync(string folderId, IFormFile file, string? fileName = null)
+        public async Task<string> UploadFileAsync(string? folderId, IFormFile file, string? fileName = null)
         {
-            if (string.IsNullOrEmpty(folderId))
+            if (string.IsNullOrWhiteSpace(folderId))
             {
-                throw new Exception("Invalid Google Drive Folder!");
+                throw new ArgumentException("The \"folderId\" parameter cannot be null or empty.", nameof(folderId));
             }
 
             var meta = new Google.Apis.Drive.v3.Data.File 
@@ -48,9 +48,42 @@ namespace SparkNET.GoogleDrive
             return request.ResponseBody.Id;
         }
 
+        public async Task<string> UploadFileAsync(string? folderId, byte[] file, string? fileName, string? mimeType)
+        {
+            if (string.IsNullOrWhiteSpace(folderId))
+            {
+                throw new ArgumentException("The \"folderId\" parameter cannot be null or empty.", nameof(folderId));
+            }
+            else if (string.IsNullOrWhiteSpace(fileName))
+            {
+                throw new ArgumentException("The \"fileName\" parameter cannot be null or empty.", nameof(fileName));
+            }
+            else if (string.IsNullOrWhiteSpace(mimeType))
+            {
+                throw new ArgumentException("The \"mimeType\" parameter cannot be null or empty.", nameof(mimeType));
+            }
+
+            var meta = new Google.Apis.Drive.v3.Data.File
+            {
+                Name = fileName,
+                Parents = [folderId]
+            };
+
+            using var ms = new MemoryStream(file);
+            var request = _service.Files.Create(meta, ms, mimeType);
+            request.Fields = "id";
+
+            var response = await request.UploadAsync(CancellationToken.None);
+            if (response.Status == UploadStatus.Failed)
+            {
+                throw new Exception(response.Exception.Message);
+            }
+            return request.ResponseBody.Id;
+        }
+
         public async Task<byte[]> DownloadFileAsync(string? fileId)
         {
-            if (string.IsNullOrEmpty(fileId)) return [];
+            if (string.IsNullOrWhiteSpace(fileId)) return [];
 
             try
             {
@@ -67,7 +100,7 @@ namespace SparkNET.GoogleDrive
 
         public async Task<bool> DeleteFileAsync(string? fileId)
         {
-            if (string.IsNullOrEmpty(fileId)) return false;
+            if (string.IsNullOrWhiteSpace(fileId)) return false;
 
             try
             {
